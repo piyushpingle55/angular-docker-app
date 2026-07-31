@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         BUILD_IMAGE_NAME = "angular-builder:${BUILD_NUMBER}"
-        DIST_OUTPUT_DIR  = "./dist"
+        DIST_OUTPUT_DIR  = "dist"
     }
 
     stages {
@@ -17,7 +17,7 @@ pipeline {
             steps {
                 script {
                     echo "--- Building Angular app inside isolated Docker container ---"
-                    sh "docker build -t ${BUILD_IMAGE_NAME} ."
+                    bat "docker build -t ${BUILD_IMAGE_NAME} ."
                 }
             }
         }
@@ -26,12 +26,16 @@ pipeline {
             steps {
                 script {
                     echo "--- Extracting compiled dist output ---"
-                    sh "rm -rf ${DIST_OUTPUT_DIR}"
-                    sh "docker create --name temp-builder-${BUILD_NUMBER} ${BUILD_IMAGE_NAME}"
-                    // Adjust path below if your dist folder structure differs
-                    sh "docker cp temp-builder-${BUILD_NUMBER}:/app/dist ${DIST_OUTPUT_DIR}"
-                    sh "docker rm -f temp-builder-${BUILD_NUMBER}"
-                    sh "docker rmi -f ${BUILD_IMAGE_NAME}"
+                    // Delete existing dist folder if present
+                    bat "if exist ${DIST_OUTPUT_DIR} rmdir /s /q ${DIST_OUTPUT_DIR}"
+                    
+                    bat "docker create --name temp-builder-${BUILD_NUMBER} ${BUILD_IMAGE_NAME}"
+                    
+                    // Adjust path below if your Dockerfile output path differs
+                    bat "docker cp temp-builder-${BUILD_NUMBER}:/app/dist ${DIST_OUTPUT_DIR}"
+                    
+                    bat "docker rm -f temp-builder-${BUILD_NUMBER}"
+                    bat "docker rmi -f ${BUILD_IMAGE_NAME}"
                 }
             }
         }
@@ -40,18 +44,19 @@ pipeline {
             steps {
                 script {
                     echo "--- Triggering Ansible deployment to IIS ---"
-                    // Update this path to your actual Ansible playbook location
-                    // sh "ansible-playbook -i inventory/hosts deploy-iis.yml"
+                    // Note: If running Ansible from Windows, ensure WSL or an Ansible runner is installed,
+                    // or execute via PowerShell:
+                    // bat "wsl ansible-playbook -i inventory/hosts deploy-iis.yml"
                 }
             }
         }
     }
 
-
     post {
         always {
-            sh "docker rm -f temp-builder-${BUILD_NUMBER} || true"
-            sh "docker rmi -f ${BUILD_IMAGE_NAME} || true"
+            // Cleanup container and image, suppressing errors if they don't exist
+            bat "docker rm -f temp-builder-${BUILD_NUMBER} 2>nul || exit 0"
+            bat "docker rmi -f ${BUILD_IMAGE_NAME} 2>nul || exit 0"
         }
     }
 }
