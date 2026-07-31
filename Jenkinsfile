@@ -47,6 +47,7 @@ pipeline {
         }
     }
 
+
     post {
         always {
             sh "docker rm -f temp-builder-${BUILD_NUMBER} || true"
