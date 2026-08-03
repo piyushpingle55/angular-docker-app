@@ -34,3 +34,5 @@ EXPOSE 80
 
 # Start Nginx web server inside container
 CMD ["nginx", "-g", "daemon off;"]
+
+#test push
