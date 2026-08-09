@@ -80,6 +80,7 @@ pipeline {
             script {
                 bat "docker rm -f temp-builder-${BUILD_NUMBER} 2>nul || exit 0"
                 bat "docker rmi -f ${BUILD_IMAGE_NAME} 2>nul || exit 0"
+                
             }
         }
     }
