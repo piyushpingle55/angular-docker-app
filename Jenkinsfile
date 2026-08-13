@@ -3,6 +3,8 @@ pipeline {
 
     environment {
         BUILD_IMAGE_NAME = "angular-builder:${BUILD_NUMBER}"
+        FINAL_IMAGE_NAME = "angular-docker-app:latest"
+        CONTAINER_NAME   = "angular-running-container"
         DIST_OUTPUT_DIR  = "dist"
         ZIP_FILE_NAME    = "angular-app-prod.zip"
     }
@@ -18,13 +20,8 @@ pipeline {
             steps {
                 script {
                     echo "--- Running SonarQube Static Code Analysis ---"
-                    
-                    // Bind the SonarScanner tool installed in Jenkins
                     def scannerHome = tool 'SonarScanner'
-                    
-                    // Wrap with SonarQube Server configuration defined in Jenkins System
                     withSonarQubeEnv('SonarQube') {
-                        // On Windows use 'bat', on Linux use 'sh'
                         bat "${scannerHome}\\bin\\sonar-scanner.bat"
                     }
                 }
@@ -34,7 +31,7 @@ pipeline {
         stage('Build inside Docker') {
             steps {
                 script {
-                    echo "--- Building Angular app inside isolated Docker container ---"
+                    echo "--- Building intermediate builder stage ---"
                     bat "docker build --target build -t ${BUILD_IMAGE_NAME} ."
                 }
             }
@@ -43,15 +40,13 @@ pipeline {
         stage('Extract Dist Artifacts') {
             steps {
                 script {
-                    echo "--- Cleaning up previous builds and extracting dist ---"
+                    echo "--- Extracting dist files for zip artifact ---"
                     bat "if exist ${DIST_OUTPUT_DIR} rmdir /s /q ${DIST_OUTPUT_DIR}"
                     bat "if exist ${ZIP_FILE_NAME} del /f /q ${ZIP_FILE_NAME}"
                     
                     bat "docker create --name temp-builder-${BUILD_NUMBER} ${BUILD_IMAGE_NAME}"
                     bat "docker cp temp-builder-${BUILD_NUMBER}:/app/dist/angular-docker-app/browser ${DIST_OUTPUT_DIR}"
-                    
                     bat "docker rm -f temp-builder-${BUILD_NUMBER}"
-                    bat "docker rmi -f ${BUILD_IMAGE_NAME}"
                 }
             }
         }
@@ -73,11 +68,36 @@ pipeline {
                 }
             }
         }
+
+        stage('Build Production Docker Image') {
+            steps {
+                script {
+                    echo "--- Building full Nginx Docker Image ---"
+                    // Full build without --target stop flag
+                    bat "docker build --no-cache -t ${FINAL_IMAGE_NAME} ."
+                }
+            }
+        }
+
+        stage('Deploy to Port 8081') {
+            steps {
+                script {
+                    echo "--- Redeploying container on port 8081 ---"
+                    // Stop and remove old running container if it exists
+                    bat "docker stop ${CONTAINER_NAME} 2>nul || exit 0"
+                    bat "docker rm -f ${CONTAINER_NAME} 2>nul || exit 0"
+                    
+                    // Run new container with updated title changes
+                    bat "docker run -d -p 8081:80 --name ${CONTAINER_NAME} ${FINAL_IMAGE_NAME}"
+                }
+            }
+        }
     }
 
     post {
         always {
             script {
+                // Clean up temporary build image only, keep FINAL_IMAGE_NAME intact
                 bat "docker rm -f temp-builder-${BUILD_NUMBER} 2>nul || exit 0"
                 bat "docker rmi -f ${BUILD_IMAGE_NAME} 2>nul || exit 0"
             }
