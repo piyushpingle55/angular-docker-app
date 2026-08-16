@@ -78,7 +78,26 @@ pipeline {
                 }
             }
         }
-
+        stage('Deploy to Kubernetes') {
+    steps {
+        script {
+            echo "--- Deploying to Local Kubernetes Cluster ---"
+            
+            // 1. Build fresh Docker image
+            bat "docker build -t angular-docker-app:latest ."
+            
+            // 2. Load image into Minikube
+            bat "minikube image load angular-docker-app:latest"
+            
+            // 3. Apply manifests
+            bat "kubectl apply -f k8s/deployment.yaml"
+            bat "kubectl apply -f k8s/service.yaml"
+            
+            // 4. Trigger a zero-downtime rolling update
+            bat "kubectl rollout restart deployment/angular-app-deployment"
+        }
+    }
+}
         stage('Deploy to Port 8081') {
             steps {
                 script {
