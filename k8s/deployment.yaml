@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: angular-app-deployment
+  labels:
+    app: angular-docker-app
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: angular-docker-app
+  template:
+    metadata:
+      labels:
+        app: angular-docker-app
+    spec:
+      containers:
+      - name: angular-container
+        image: angular-docker-app:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
+          requests:
+            cpu: "250m"
+            memory: "128Mi"
