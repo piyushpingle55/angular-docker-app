@@ -78,22 +78,24 @@ pipeline {
                 }
             }
         }
-        stage('Deploy to Kubernetes') {
+       stage('Deploy to Kubernetes') {
+    environment {
+        // Points Jenkins to your personal user profile directories
+        MINIKUBE_HOME = 'C:/Users/piyush'
+        KUBECONFIG    = 'C:/Users/piyush/.kube/config'
+    }
     steps {
         script {
             echo "--- Deploying to Local Kubernetes Cluster ---"
             
-            // 1. Build fresh Docker image
-            bat "docker build -t angular-docker-app:latest ."
+            // 1. Load the freshly built Docker image into Minikube
+            bat "minikube image load ${FINAL_IMAGE_NAME}"
             
-            // 2. Load image into Minikube
-            bat "minikube image load angular-docker-app:latest"
-            
-            // 3. Apply manifests
+            // 2. Apply deployment and service configurations
             bat "kubectl apply -f k8s/deployment.yaml"
             bat "kubectl apply -f k8s/service.yaml"
             
-            // 4. Trigger a zero-downtime rolling update
+            // 3. Trigger a zero-downtime rolling update
             bat "kubectl rollout restart deployment/angular-app-deployment"
         }
     }
