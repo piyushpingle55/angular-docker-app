@@ -17,7 +17,7 @@ pipeline {
             steps {
                 script {
                     echo "--- Running SonarQube Analysis ---"
-                    // Retrieves the SonarScanner tool configured in Global Tool Configuration
+                    // Retrieves the SonarScanner tool configured in Global Tool Configurations
                     def scannerHome = tool 'SonarScanner'
                     
                     // Binds the global SonarQube server configuration set in Jenkins System Settings
