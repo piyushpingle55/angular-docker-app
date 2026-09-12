@@ -13,6 +13,21 @@ pipeline {
             }
         }
 
+        stage('SonarQube Code Scan') {
+            steps {
+                script {
+                    echo "--- Running SonarQube Analysis ---"
+                    // Retrieves the SonarScanner tool configured in Global Tool Configuration
+                    def scannerHome = tool 'SonarScanner'
+                    
+                    // Binds the global SonarQube server configuration set in Jenkins System Settings
+                    withSonarQubeEnv('SonarQube') {
+                        bat "${scannerHome}\\bin\\sonar-scanner.bat"
+                    }
+                }
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 script {
@@ -26,11 +41,9 @@ pipeline {
             steps {
                 script {
                     echo "--- Redeploying Container on Port 8081 ---"
-                    // Stop and remove existing container if running
                     bat "docker stop ${CONTAINER_NAME} 2>nul || exit 0"
                     bat "docker rm -f ${CONTAINER_NAME} 2>nul || exit 0"
                     
-                    // Run fresh container mapped to host port 8081
                     bat "docker run -d -p 8081:80 --name ${CONTAINER_NAME} ${FINAL_IMAGE_NAME}"
                 }
             }
@@ -42,6 +55,7 @@ pipeline {
             script {
                 echo "======================================================="
                 echo " SUCCESS! Access your app at: http://localhost:8081"
+                echo " SonarQube Report uploaded to your SonarQube Dashboard"
                 echo "======================================================="
             }
         }
